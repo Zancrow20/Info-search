@@ -11,7 +11,8 @@ public partial class WebCrawlerService
     private const int MinPagesCount = 100;
     private const int MaxPagesCount = 150;
     private readonly ILogger<WebCrawlerService> _logger;
-    private static readonly string Path = System.IO.Path.Combine(Directory.GetCurrentDirectory(), "Pages");
+    
+    private static readonly string PagesPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), @"..\..\Pages"));
 
     public WebCrawlerService(IHttpClientFactory httpClientFactory, ILogger<WebCrawlerService> logger)
     {
@@ -61,12 +62,12 @@ public partial class WebCrawlerService
 
     private async Task WriteResults(HtmlPageInfo htmlPageInfo, Uri currentUri, int index, CancellationToken cancellationToken)
     {
-        if (!Directory.Exists(Path))
-            Directory.CreateDirectory(Path);
+        if (!Directory.Exists(PagesPath))
+            Directory.CreateDirectory(PagesPath);
 
-        var indexFilePath = System.IO.Path.Combine(Path, "index.txt");
+        var indexFilePath = Path.Combine(PagesPath, "index.txt");
         var content = string.Join(Environment.NewLine, htmlPageInfo.Words);
-        var contentFilePath = System.IO.Path.Combine(Path, $"{index}.txt");
+        var contentFilePath = Path.Combine(PagesPath, $"{index}.txt");
         
         _logger.LogInformation("Writing {index}.txt file.", index);
         await File.WriteAllTextAsync(contentFilePath, content, cancellationToken);
@@ -85,6 +86,7 @@ public partial class WebCrawlerService
             
             var childUris = GetLinks(html, currentUri);
             var words = GetWords(html);
+            await WriteResults(new HtmlPageInfo(childUris, words), currentUri, 1, cancellationToken);
             return new HtmlPageInfo(childUris, words);
         }
         catch (Exception ex)
