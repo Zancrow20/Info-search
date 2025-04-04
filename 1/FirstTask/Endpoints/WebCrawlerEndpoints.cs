@@ -23,9 +23,13 @@ public static class WebCrawlerEndpoints
                 async (string uriStr, WebCrawlerService webCrawlerService, CancellationToken cancellationToken) =>
                 {
                     var canCreate = Uri.TryCreate(uriStr, UriKind.Absolute, out var uri);
-                    if(canCreate && uri is not null)
-                        return Results.Ok(await webCrawlerService.GetHtmlPageInfo(uri, cancellationToken));
-                    return Results.BadRequest($"Не получилось распарсить uri: {uriStr}");
+                    if (!canCreate || uri is null) 
+                        return Results.BadRequest($"Не получилось распарсить uri: {uriStr}");
+                    
+                    var result = await webCrawlerService.GetHtmlPageInfo(uri, cancellationToken);
+                    return result is null ?
+                        Results.BadRequest("Не удалось получить данные со страницы или язык страницы не был русским") :
+                        Results.Ok(result);
                 })
             .WithName("Check");
     }

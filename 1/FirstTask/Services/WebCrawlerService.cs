@@ -84,9 +84,18 @@ public partial class WebCrawlerService
             using var reader = new StreamReader(responseStream, Encoding.UTF8);
             var html = await reader.ReadToEndAsync(cancellationToken);
             
-            var childUris = GetLinks(html, currentUri);
+            var doc = new HtmlDocument();
+            doc.LoadHtml(html);
+            
+            var lang = doc.DocumentNode
+                .SelectSingleNode("//html[@lang]")
+                .GetAttributeValue("lang", string.Empty);
+            if (lang.ToLowerInvariant() is not ("ru" or "ru-ru"))
+                return null;
+            
+            var childUris = GetLinks(doc, currentUri);
             var words = GetWords(html);
-            await WriteResults(new HtmlPageInfo(childUris, words), currentUri, 1, cancellationToken);
+            
             return new HtmlPageInfo(childUris, words);
         }
         catch (Exception ex)
@@ -110,24 +119,23 @@ public partial class WebCrawlerService
         return matches.Select(x => x.ToString()).ToList();
     }
 
-    private List<Uri> GetLinks(string html, Uri currentUri)
+    private List<Uri> GetLinks(HtmlDocument htmlDoc, Uri currentUri)
     {
         List<Uri> childUris = [];
-        var doc = new HtmlDocument();
-        doc.LoadHtml(html);
         childUris
-            .AddRange(doc.DocumentNode.SelectNodes("//a[@href]")
+            .AddRange(htmlDoc.DocumentNode.SelectNodes("//a[@href]")
                 .Select(link => link.GetAttributeValue("href", string.Empty))
+                .Where(href => !string.IsNullOrWhiteSpace(href))
                 .Select(href => new Uri(currentUri, href)));
         return childUris;
     }
 
-    [GeneratedRegex(@"<(script|head|style)[^>]*>.*?</\1>", RegexOptions.IgnoreCase | RegexOptions.Singleline, "ru-RU")]
+    [GeneratedRegex(@"<(script|head|style)[^>]*>.*?</\1>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled, "ru-RU")]
     private static partial Regex RemoveMainTagsRegex();
     
-    [GeneratedRegex(@"<.*?>")]
+    [GeneratedRegex("<.*?>", RegexOptions.Compiled)]
     private static partial Regex RemoveOnlyTagsRegex();
     
-    [GeneratedRegex(@"\p{IsCyrillic}+")]
+    [GeneratedRegex(@"\p{IsCyrillic}+", RegexOptions.Compiled)]
     private static partial Regex CyrillicTextRegex();
 }
