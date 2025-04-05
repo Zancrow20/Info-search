@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="mystem-yandex\mystem.exe" >
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <None Include="..\..\Pages\*.txt" >
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <Link>Pages\%(RecursiveDir)%(Filename)%(Extension)</Link>
+        </None>
+        <None Include="..\..\Stopwords\*.txt" >
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <Link>Stopwords\%(RecursiveDir)%(Filename)%(Extension)</Link>
+        </None>
+    </ItemGroup>
+    
+</Project>

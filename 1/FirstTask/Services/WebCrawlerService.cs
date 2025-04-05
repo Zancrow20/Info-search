@@ -66,7 +66,7 @@ public partial class WebCrawlerService
             Directory.CreateDirectory(PagesPath);
 
         var indexFilePath = Path.Combine(PagesPath, "index.txt");
-        var content = string.Join(Environment.NewLine, htmlPageInfo.Words);
+        var content = string.Join(" ", htmlPageInfo.Words);
         var contentFilePath = Path.Combine(PagesPath, $"{index}.txt");
         
         _logger.LogInformation("Writing {index}.txt file.", index);
@@ -87,11 +87,14 @@ public partial class WebCrawlerService
             var doc = new HtmlDocument();
             doc.LoadHtml(html);
             
-            var lang = doc.DocumentNode
-                .SelectSingleNode("//html[@lang]")
-                .GetAttributeValue("lang", string.Empty);
-            if (lang.ToLowerInvariant() is not ("ru" or "ru-ru"))
-                return null;
+            var langAttribute = doc.DocumentNode
+                .SelectSingleNode("//html[@lang]");
+            if (langAttribute is not null)
+            {
+                var langValue = langAttribute.GetAttributeValue("lang", string.Empty);
+                if (langValue is not ("ru" or "ru-RU"))
+                    return null;   
+            }
             
             var childUris = GetLinks(doc, currentUri);
             var words = GetWords(html);
@@ -122,11 +125,17 @@ public partial class WebCrawlerService
     private List<Uri> GetLinks(HtmlDocument htmlDoc, Uri currentUri)
     {
         List<Uri> childUris = [];
-        childUris
-            .AddRange(htmlDoc.DocumentNode.SelectNodes("//a[@href]")
-                .Select(link => link.GetAttributeValue("href", string.Empty))
-                .Where(href => !string.IsNullOrWhiteSpace(href))
-                .Select(href => new Uri(currentUri, href)));
+        var hrefNodes = htmlDoc.DocumentNode.SelectNodes("//a[@href]");
+        if(hrefNodes == null)
+            return [];
+        var uris = hrefNodes
+            .Where(x => x is not null)
+            .Select(link => link.GetAttributeValue("href", string.Empty))
+            .Where(href => !string.IsNullOrWhiteSpace(href))
+            .Select(href => new Uri(currentUri, href))
+            .Where(uri => uri.Query == "?" || string.IsNullOrEmpty(uri.Query.Trim('?')))
+            .Distinct();
+        childUris.AddRange(uris);
         return childUris;
     }
 
