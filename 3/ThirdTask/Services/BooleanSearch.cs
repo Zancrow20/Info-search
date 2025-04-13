@@ -5,7 +5,7 @@ namespace ThirdTask.Services;
 
 public class BooleanSearch
 {
-    private readonly Dictionary<string, List<string>> _index;
+    private readonly SortedDictionary<string, SortedSet<string>> _index;
     private readonly IEnumerable<string> _fileNames;
     private static readonly string MystemPath = Path.Combine(Directory.GetCurrentDirectory(), @"mystem-yandex\mystem.exe");
     private static readonly Process Process;
@@ -39,8 +39,7 @@ public class BooleanSearch
         Process.BeginErrorReadLine(); 
     }
     
-    public BooleanSearch(
-        Dictionary<string, List<string>> index)
+    public BooleanSearch(SortedDictionary<string, SortedSet<string>> index)
     {
         _index = index;
         _fileNames = index.Values

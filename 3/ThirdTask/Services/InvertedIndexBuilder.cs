@@ -8,7 +8,7 @@ public static class InvertedIndexBuilder
     private static string ProcessedPath = Path.Combine(BasePath, "Processed");
     private static string IndexPath = Path.GetFullPath(Path.Combine(BasePath, @"..\..\..\..\..\Index\index.txt"));
     
-    public static async Task<Dictionary<string, List<string>>?> BuildIndex()
+    public static async Task<SortedDictionary<string, SortedSet<string>>?> BuildIndex()
     {
         if (!Directory.Exists(ProcessedPath))
         {
@@ -29,16 +29,16 @@ public static class InvertedIndexBuilder
 
             foreach (var token in tokens)
             {
-                var isAdded = index.TryAdd(token, [filePath]);
+                var isAdded = index.TryAdd(token, new SortedSet<string>([filePath], new NaturalSortComparer()));
                 if (!isAdded)
                     index[token].Add(filePath);
             }
         }
 
-        return index.ToDictionary(x => x.Key, x => x.Value.ToList());
+        return index;
     }
 
-    public static async Task SaveIndex(Dictionary<string, List<string>>? index)
+    public static async Task SaveIndex(SortedDictionary<string, SortedSet<string>>? index)
     {
         ArgumentNullException.ThrowIfNull(index);
         
@@ -49,12 +49,13 @@ public static class InvertedIndexBuilder
             sb.AppendLine($"{entry.Key}: {string.Join(", ", entry.Value)}");
         }
 
-        await File.WriteAllTextAsync(IndexPath, sb.ToString(), Encoding.UTF8);
+        var str = sb.ToString();
+        await File.WriteAllTextAsync(IndexPath, str, Encoding.UTF8);
     }
 
-    public static bool TryGetIndex(out Dictionary<string, List<string>> index)
+    public static bool TryGetIndex(out SortedDictionary<string, SortedSet<string>> index)
     {
-        index = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        index = new SortedDictionary<string, SortedSet<string>>(new NaturalSortComparer());
         if (!File.Exists(IndexPath))
             return false;
         
@@ -66,8 +67,8 @@ public static class InvertedIndexBuilder
             if(split.Length < 2)
                 continue;
             var key = split[0];
-            var values = split[1].Split(",", StringSplitOptions.RemoveEmptyEntries);
-            index.TryAdd(key, [..values]);
+            var values = new SortedSet<string>(split[1].Split(",", StringSplitOptions.RemoveEmptyEntries), new NaturalSortComparer());
+            index.TryAdd(key, values);
         }
 
         return index.Count > 0;

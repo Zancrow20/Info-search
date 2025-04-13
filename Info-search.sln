@@ -13,6 +13,9 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ThirdTask", "3\ThirdTask\ThirdTask.csproj", "{563F2148-AE0C-491D-BD1E-A78656DA9208}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "4", "4", "{46C5726D-8CBC-4E64-842E-F4DA3F66327A}"
+	ProjectSection(SolutionItems) = preProject
+		4\Task.md = 4\Task.md
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FourthTask", "4\FourthTask\FourthTask.csproj", "{6146DBBB-4FF6-45CB-BEB3-304ADDBDE7F7}"
 EndProject
