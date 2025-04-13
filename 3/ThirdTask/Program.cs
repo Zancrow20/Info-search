@@ -19,8 +19,8 @@ while (true)
     Console.WriteLine("Введите булев запрос (например: слово1 И слово2 ИЛИ !слово3):");
     var query = Console.ReadLine()!;
     var search = new BooleanSearch(index);
-    var docs = string.Join(", ", search.Search(query));
-    var result = $"[{docs}]";
+    var docs = await search.Search(query);
+    var result = $"[{string.Join(", ", docs)}]";
 
     Console.WriteLine("Документы:");
     Console.WriteLine(result);

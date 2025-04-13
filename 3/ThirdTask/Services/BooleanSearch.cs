@@ -1,12 +1,43 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Diagnostics;
+using System.Text;
 
 namespace ThirdTask.Services;
 
-public partial class BooleanSearch
+public class BooleanSearch
 {
-
     private readonly Dictionary<string, List<string>> _index;
     private readonly IEnumerable<string> _fileNames;
+    private static readonly string MystemPath = Path.Combine(Directory.GetCurrentDirectory(), @"mystem-yandex\mystem.exe");
+    private static readonly Process Process;
+
+    static BooleanSearch()
+    {
+        Process = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = MystemPath,
+                Arguments = "-nld",
+                UseShellExecute = false,
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true, 
+                CreateNoWindow = true,
+                StandardInputEncoding = Encoding.UTF8,
+                StandardOutputEncoding = Encoding.UTF8
+            },
+            EnableRaisingEvents = true
+        };
+        
+        Process.ErrorDataReceived += (_, e) => 
+        {
+            if (!string.IsNullOrEmpty(e.Data))
+                Console.WriteLine($"MyStem ERROR: {e.Data}");
+        };
+        
+        Process.Start();
+        Process.BeginErrorReadLine(); 
+    }
     
     public BooleanSearch(
         Dictionary<string, List<string>> index)
@@ -17,12 +48,12 @@ public partial class BooleanSearch
             .Distinct();
     }
         
-    public IEnumerable<string> Search(string input)
+    public async Task<IEnumerable<string>> Search(string input)
     {
         var tokens = Tokenize(input);
         var postfix = ToPostfix(tokens);
 
-        var docs = SearchDocs(postfix)
+        var docs = (await SearchDocs(postfix))
             .Order(new NaturalSortComparer());
         return docs;
     }
@@ -70,7 +101,7 @@ public partial class BooleanSearch
         return output;
     }
 
-    private IEnumerable<string> SearchDocs(IEnumerable<string> tokens)
+    private async Task<IEnumerable<string>> SearchDocs(IEnumerable<string> tokens)
     {
         var stack = new Stack<IEnumerable<string>>();
         
@@ -97,7 +128,7 @@ public partial class BooleanSearch
                 }
                 default:
                 {
-                    var constant = Constant(token);
+                    var constant = await Constant(token);
                     stack.Push(constant);
                     break;
                 }
@@ -113,11 +144,23 @@ public partial class BooleanSearch
 
     private IEnumerable<string> Not(IEnumerable<string> a) => _fileNames.Except(a);
 
-    private IEnumerable<string> Constant(string token) => 
-        !_index.TryGetValue(token, out var value) ?
-            [] :
-            value;
-    
-    [GeneratedRegex("[0-9]+")]
-    private static partial Regex NumbersRegex();
+    private async Task<IEnumerable<string>> Constant(string token)
+    {
+        var lemma = await LemmatizeWithMystem(token);
+        return !_index.TryGetValue(lemma, out var value) ? [] : value;
+    }
+
+    /// <summary>
+    /// Лемматизация слова через mystem.exe
+    /// </summary>
+    private static async Task<string> LemmatizeWithMystem(string token)
+    {
+        if (Process.HasExited)
+            Process.Start();
+
+        await Process.StandardInput.WriteLineAsync(token);
+        var result = await Process.StandardOutput.ReadLineAsync();
+        var lemma = result?.Replace("?", "") ?? token;
+        return lemma;
+    }
 }

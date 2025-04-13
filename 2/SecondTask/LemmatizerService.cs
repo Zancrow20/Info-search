@@ -16,7 +16,36 @@ public class LemmatizerService
     private static readonly string MystemPath =
         Path.Combine(Directory.GetCurrentDirectory(), @"mystem-yandex\mystem.exe");
 
-    private static Process _process;
+    private static readonly Process Process;
+
+    static LemmatizerService()
+    {
+        Process = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = MystemPath,
+                Arguments = "-nld",
+                UseShellExecute = false,
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true, 
+                CreateNoWindow = true,
+                StandardInputEncoding = Encoding.UTF8,
+                StandardOutputEncoding = Encoding.UTF8
+            },
+            EnableRaisingEvents = true
+        };
+        
+        Process.ErrorDataReceived += (_, e) => 
+        {
+            if (!string.IsNullOrEmpty(e.Data))
+                Console.WriteLine($"MyStem ERROR: {e.Data}");
+        };
+        
+        Process.Start();
+        Process.BeginErrorReadLine();
+    }
 
     public static async Task Lemmatize()
     {
@@ -47,9 +76,6 @@ public class LemmatizerService
         var txtFiles = Directory
             .GetFiles(PagesPath, "*.txt")
             .Where(f => Path.GetFileName(f) != "index.txt");
-        
-        //Настройка процесса
-        ConfigureProcess();
 
         foreach (var textFile in txtFiles)
         {
@@ -71,35 +97,6 @@ public class LemmatizerService
         }
     }
 
-    private static void ConfigureProcess()
-    {
-        _process = new Process
-        {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = MystemPath,
-                Arguments = "-nld",
-                UseShellExecute = false,
-                RedirectStandardInput = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true, 
-                CreateNoWindow = true,
-                StandardInputEncoding = Encoding.UTF8,
-                StandardOutputEncoding = Encoding.UTF8
-            },
-            EnableRaisingEvents = true
-        };
-        
-        _process.ErrorDataReceived += (_, e) => 
-        {
-            if (!string.IsNullOrEmpty(e.Data))
-                Console.WriteLine($"MyStem ERROR: {e.Data}");
-        };
-        
-        _process.Start();
-        _process.BeginErrorReadLine();
-    }
-
     /// <summary>
     /// Лемматизация списка слов через mystem.exe
     /// </summary>
@@ -108,11 +105,11 @@ public class LemmatizerService
         List<string> lemmas = [];
         foreach (var token in tokens)
         {
-            if (_process.HasExited)
-                _process.Start();
+            if (Process.HasExited)
+                Process.Start();
 
-            await _process.StandardInput.WriteLineAsync(token);
-            var result = await _process.StandardOutput.ReadLineAsync();
+            await Process.StandardInput.WriteLineAsync(token);
+            var result = await Process.StandardOutput.ReadLineAsync();
             var lemma = result?.Replace("?", "") ?? token;
             lemmas.Add(lemma);
         }

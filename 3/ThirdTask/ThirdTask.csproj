@@ -16,6 +16,9 @@
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
             <Link>Index\%(RecursiveDir)%(Filename)%(Extension)</Link>
         </None>
+        <None Update="mystem-yandex\mystem.exe">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
     </ItemGroup>
 
     <ItemGroup>
