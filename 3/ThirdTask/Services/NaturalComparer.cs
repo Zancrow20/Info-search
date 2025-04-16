@@ -20,7 +20,7 @@ public class NaturalSortComparer : IComparer<string>
                     ix++;
                 }
 
-                int ny = 0;
+                var ny = 0;
                 while (iy < y.Length && char.IsDigit(y[iy]))
                 {
                     ny = ny * 10 + (y[iy] - '0');

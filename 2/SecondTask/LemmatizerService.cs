@@ -14,7 +14,7 @@ public class LemmatizerService
     private static readonly string StopWordsPath = Path.Combine(BasePath, @"Stopwords\stopwords.txt");
 
     private static readonly string MystemPath =
-        Path.Combine(Directory.GetCurrentDirectory(), @"mystem-yandex\mystem.exe");
+        Path.Combine(BasePath, @"mystem-yandex\mystem.exe");
 
     private static readonly Process Process;
 

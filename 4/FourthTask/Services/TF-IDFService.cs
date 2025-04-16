@@ -1,5 +1,6 @@
 ﻿using System.Text;
-using ThirdTask.Services;
+using FourthTask.Models;
+using ThirdTask.Extensions;
 
 namespace FourthTask.Services;
 
@@ -10,11 +11,10 @@ public class TfIdfService
     private static readonly string TfIdfPath = Path.GetFullPath(Path.Combine(BasePath, @"..\..\..\..\..\TF-IDF"));
     private static readonly string TfIdfFilePath = Path.Combine(TfIdfPath, "tf-idf.csv");
     
-    private static readonly SortedDictionary<string, SortedDictionary<string, decimal>> TfIdf = new(new NaturalSortComparer());
+    private static SortedDictionary<Token, SortedDictionary<Document, decimal>> TfIdf = new(new NaturalSortComparerForModels());
     
-    public static async Task<SortedDictionary<string, SortedDictionary<string, decimal>>> CreateTermFrequencyInverseDocumentFrequency(
-        SortedDictionary<string, decimal> idf, 
-        SortedDictionary<string, SortedDictionary<string, decimal>> tf)
+    public static async Task CreateTermFrequencyInverseDocumentFrequency(SortedDictionary<Token, decimal> idf,
+        SortedDictionary<Token, SortedDictionary<Document, decimal>> tf)
     {
         foreach (var (term, frequencies) in tf)
         {
@@ -23,39 +23,51 @@ public class TfIdfService
                 kv => kv.Key,
                 kv => Math.Round(kv.Value * frequency, 6));
             
-            TfIdf.TryAdd(term, new SortedDictionary<string, decimal>(termTfIdf, new NaturalSortComparer()));
+            TfIdf.TryAdd(term, termTfIdf.ToSortedDictionary(new NaturalSortComparerForModels()));
         }
      
         var txtFiles = Directory.GetFiles(ProcessedPath, "*.txt");
         await CsvService.SaveCsv(TfIdfFilePath, TfIdf, txtFiles);
-        return TfIdf;
     }
     
-    public static bool TryGetTermFrequency(out SortedDictionary<string, SortedDictionary<string, decimal>> tfIdf)
+    /// <summary>
+    /// Получаю вектора TF-IDF для документов
+    /// </summary>
+    /// <param name="tfIdf"></param>
+    /// <returns></returns>
+    public static bool TryGetTermFrequencyInverseDocumentFrequency(out SortedDictionary<Document, SortedDictionary<Token, decimal>> tfIdf)
     {
-        tfIdf = new SortedDictionary<string, SortedDictionary<string, decimal>>(new NaturalSortComparer());
+        tfIdf = new SortedDictionary<Document, SortedDictionary<Token, decimal>>(new NaturalSortComparerForModels());
         
         if (!File.Exists(TfIdfFilePath))
             return false;
         
         var tfIdfFile = File.ReadAllLines(TfIdfFilePath, Encoding.UTF8);
 
-        var docs = tfIdfFile[0].Split(";").Skip(1);
+        var docs = tfIdfFile[0]
+            .Split(";")
+            .Skip(1)
+            .Select(x => new Document(x))
+            .ToList();
+
+        foreach (var doc in docs)
+            tfIdf.TryAdd(doc, new SortedDictionary<Token, decimal>(new NaturalSortComparerForModels()));
         
         foreach (var tfInfo in tfIdfFile.Skip(1))
         {
-            var content = tfInfo.Split(";").ToList();
-            var word = content[0];
+            var content = tfInfo
+                .Split(";")
+                .ToList();
+            
+            var word = new Token(content[0]);
 
             var values = content
                 .Skip(1)
                 .Select(decimal.Parse)
                 .Zip(docs);
             
-            var frequencies = values.ToDictionary(
-                kv => kv.Second, 
-                kv => kv.First);
-            tfIdf.TryAdd(word, new SortedDictionary<string, decimal>(frequencies, new NaturalSortComparer()));
+            foreach (var (frequency, doc) in values)
+                tfIdf[doc].TryAdd(word, frequency);
         }
 
         return tfIdf.Count > 0;

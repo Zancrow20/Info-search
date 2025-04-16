@@ -1,5 +1,6 @@
 ﻿using System.Text;
-using ThirdTask.Services;
+using FourthTask.Models;
+using ThirdTask.Extensions;
 
 namespace FourthTask.Services;
 
@@ -10,20 +11,23 @@ public class IdfService
     private static readonly string TfIdfPath = Path.GetFullPath(Path.Combine(BasePath, @"..\..\..\..\..\TF-IDF"));
     private static readonly string IdfFilePath = Path.Combine(TfIdfPath, "idf.csv");
     
-    private static readonly SortedDictionary<string, decimal> Idf = new(new NaturalSortComparer());
+    private static readonly SortedDictionary<Token, decimal> Idf = new(new NaturalSortComparerForModels());
 
-    public static async Task<SortedDictionary<string, decimal>> CreateInverseDocumentFrequency(SortedDictionary<string, SortedSet<string>> index)
+    public static async Task<SortedDictionary<Token, decimal>> CreateInverseDocumentFrequency(SortedDictionary<string, SortedSet<string>> index)
     {
         var txtFilesCount = Directory.GetFiles(ProcessedPath, "*.txt").Length;
 
         foreach (var kv in index)
-            Idf.TryAdd(kv.Key, (decimal) kv.Value.Count / txtFilesCount);
+        {
+            var idf = Math.Round((decimal) Math.Log10(txtFilesCount / kv.Value.Count), 6);
+            Idf.TryAdd(new Token(kv.Key), idf);
+        }
 
         await CsvService.SaveCsv(IdfFilePath, Idf);
         return Idf;
     }
     
-    public static bool TryGetInverseDocumentFrequency(out SortedDictionary<string, decimal> idf)
+    public static bool TryGetInverseDocumentFrequency(out SortedDictionary<Token, decimal> idf)
     {
         idf = [];
         
@@ -36,9 +40,9 @@ public class IdfService
             .Skip(1)
             .Select(x => x.Split(";"))
             .ToDictionary(
-                kv => kv[0], 
+                kv => new Token(kv[0]), 
                 kv => decimal.Parse(kv[1]));
-        idf = new SortedDictionary<string, decimal>(dictionary, new NaturalSortComparer());
+        idf = dictionary.ToSortedDictionary(new NaturalSortComparerForModels());
 
         return idf.Count > 0;
     }

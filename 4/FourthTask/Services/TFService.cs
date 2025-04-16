@@ -1,4 +1,6 @@
 ﻿using System.Text;
+using FourthTask.Models;
+using ThirdTask.Extensions;
 using ThirdTask.Services;
 
 namespace FourthTask.Services;
@@ -10,30 +12,31 @@ public class TfService
     private static readonly string TfIdfPath = Path.GetFullPath(Path.Combine(BasePath, @"..\..\..\..\..\TF-IDF"));
     private static readonly string TfFilePath = Path.Combine(TfIdfPath, "tf.csv");
 
-    private static readonly SortedDictionary<string, SortedDictionary<string, decimal>> Tf = new (new NaturalSortComparer());
-    public static async Task<SortedDictionary<string, SortedDictionary<string, decimal>>> CreateTermFrequency()
+    private static readonly SortedDictionary<Token, SortedDictionary<Document, decimal>> Tf = new (new NaturalSortComparerForModels());
+    public static async Task<SortedDictionary<Token, SortedDictionary<Document, decimal>>> CreateTermFrequency()
     {
         var txtFiles = Directory.GetFiles(ProcessedPath, "*.txt");
 
         var frequencies = txtFiles
             .Order(new NaturalSortComparer())
             .Select(Path.GetFileName)
-            .ToDictionary(kv => kv!, _ => 0m);
+            .ToDictionary(kv => new Document(kv!), _ => 0m);
         
         foreach (var textFile in txtFiles)
         {
             var content = await File.ReadAllTextAsync(textFile, Encoding.UTF8);
-            var filePath = Path.GetFileName(textFile);
+            var filePath = new Document(Path.GetFileName(textFile));
 
             var words = content.Split(" ");
             var terms = words
                 .GroupBy(x => x)
-                .Select(x => new { x.Key, Count = x.Count() })
+                .Select(x => new {Key = new Token(x.Key), Count = x.Count() })
                 .ToList();
+            
             foreach (var term in terms)
             {
-                Tf.TryAdd(term.Key, new SortedDictionary<string, decimal>(frequencies, new NaturalSortComparer()));
-                var frequency = Math.Round((decimal) term.Count / words.Length, 6);;
+                Tf.TryAdd(term.Key, frequencies.ToSortedDictionary(new NaturalSortComparerForModels()));
+                var frequency = Math.Round((decimal) term.Count / words.Length, 6);
                 Tf[term.Key][filePath] = frequency;
             }
         }
@@ -42,9 +45,21 @@ public class TfService
         return Tf;
     }
     
-    public static bool TryGetTermFrequency(out SortedDictionary<string, SortedDictionary<string, decimal>> tf)
+    public static SortedDictionary<Token, decimal> CalculateTermFrequencyForQuery(IEnumerable<Token> tokens)
     {
-        tf = new SortedDictionary<string, SortedDictionary<string, decimal>>(new NaturalSortComparer());
+        var list = tokens.ToList();
+        var dict = list
+            .GroupBy(x => x)
+            .ToDictionary(
+                kv => kv.Key,
+                kv => Math.Round((decimal) kv.Count() / list.Count, 6));
+        
+        return dict.ToSortedDictionary(new NaturalSortComparerForModels());
+    }
+    
+    public static bool TryGetTermFrequency(out SortedDictionary<Token, SortedDictionary<Document, decimal>> tf)
+    {
+        tf = new SortedDictionary<Token, SortedDictionary<Document, decimal>>(new NaturalSortComparerForModels());
         
         if (!File.Exists(TfFilePath))
             return false;
@@ -56,7 +71,7 @@ public class TfService
         foreach (var tfInfo in tfFile.Skip(1))
         {
             var content = tfInfo.Split(";").ToList();
-            var word = content[0];
+            var word = new Token(content[0]);
 
             var values = content
                 .Skip(1)
@@ -64,9 +79,10 @@ public class TfService
                 .Zip(docs);
             
             var frequencies = values.ToDictionary(
-                kv => kv.Second, 
+                kv => new Document(kv.Second), 
                 kv => kv.First);
-            tf.TryAdd(word, new SortedDictionary<string, decimal>(frequencies, new NaturalSortComparer()));
+            
+            tf.TryAdd(word, frequencies.ToSortedDictionary(new NaturalSortComparerForModels()));
         }
 
         return tf.Count > 0;
