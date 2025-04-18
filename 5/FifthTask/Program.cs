@@ -30,24 +30,24 @@ while (true)
     
     var lemmas = await LemmatizerService.Lemmatize(query);
     
-    //find tokens in idf, if didn't find -> remove from list
+    //find tokens in IDF, if didn't find -> remove from list
     var tokens = lemmas
         .Select(x => new Token(x))
         .Where(x => idf.ContainsKey(x))
         .ToList();
 
-    //calculate tf for each token
+    //calculate TF for each token
     var tfForQuery = TfService.CalculateTermFrequencyForQuery(tokens); 
 
-    //calculate Tf-Idf for query
+    //calculate TF-IDF for query
     var tfIdfForQuery = idf
         .Select(kv => new KeyValuePair<Token, decimal>(
             kv.Key, 
             Math.Round(kv.Value * tfForQuery.GetValueOrDefault(kv.Key, 0), 6)))
         .ToSortedDictionary(new NaturalSortComparerForModels());
 
-    //calculate Cosine Similarity
-    var cosineSimilarities = new List<(Document Document, decimal Similarity)>();
+    //calculate cosine similarity
+    var cosineSimilarities = new List<(Document Document, decimal Score)>();
     foreach (var (document, dictionary) in tfIdf)
     {
         var cosineSimilarity = CosineSimilarityService
@@ -58,10 +58,10 @@ while (true)
         cosineSimilarities.Add((document, cosineSimilarity));
     }
 
-    //then sort by results
+    //sort by score
     var sorted = cosineSimilarities
-        .OrderByDescending(x => x.Similarity)
-        .GroupBy(x => x.Similarity)
+        .OrderByDescending(x => x.Score)
+        .GroupBy(x => x.Score)
         .Select(x =>
         {
             var docNames = x.Select(d => d.Document.Value);
@@ -69,7 +69,7 @@ while (true)
         })
         .ToList();
     
-    //then cw
+    //write to console
     Console.WriteLine("\nРезультаты:");
     Console.WriteLine($"{string.Join(";\n", sorted)};\n");
     
