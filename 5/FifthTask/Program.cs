@@ -36,7 +36,7 @@ while (true)
         .Where(x => idf.ContainsKey(x))
         .ToList();
 
-    //calculate TF for each token
+    //calculate TF for query
     var tfForQuery = TfService.CalculateTermFrequencyForQuery(tokens); 
 
     //calculate TF-IDF for query
@@ -65,7 +65,7 @@ while (true)
         .Select(x =>
         {
             var docNames = x.Select(d => d.Document.Value);
-            return $"{string.Join(", ", docNames)}: Score = {x.Key}";
+            return $"{string.Join(", ", docNames)}: Score = {Math.Round(x.Key, 6)}";
         })
         .ToList();
     

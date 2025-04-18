@@ -85,8 +85,8 @@ public class BooleanSearch
             if (token is "&" or "|" or "!")
             {
                 while (stack.Count > 0 &&
-                       priorities.TryGetValue(stack.Peek(), out var prec) &&
-                       prec >= priorities[token])
+                       priorities.TryGetValue(stack.Peek(), out var priority) &&
+                       priority >= priorities[token])
                     output.Add(stack.Pop());
                 stack.Push(token);
             }
